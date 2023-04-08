@@ -134,8 +134,6 @@ async function runTests(
     ...colconExtraArgs,
   ];
 
-  colconTestCmd = [...colconTestCmd, `--merge-install`];
-
   await execShellCommand(
     [...colconCommandPrefix, ...colconTestCmd],
     options,
