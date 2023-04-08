@@ -41,10 +41,19 @@ function resolveVcsRepoFileUrl(vcsRepoFileUrl: string): string {
   }
 }
 
+
+// export async function execShellCommand(
+// 	command: string[],
+// 	options?: im.ExecOptions,
+// 	force_bash: boolean = true,
+// 	log_message?: string
+// ):
+
 export async function execShellCommand(
   command: string[],
   options?: im.ExecOptions,
-  log_message?: boolean
+  force_bash: boolean = true,
+  log_message?: string
 ): Promise<number> {
   command = [filterNonEmptyJoin(command)];
 
@@ -68,9 +77,9 @@ export async function execShellCommand(
     return runner.exec();
   }
 
-  const message_string: string = message ? 'true' : 'false';
+  // const message_string: string = message ? 'true' : 'false';
 
-  return core.group(message_string, () => {
+  return core.group(message, () => {
     return runner.exec();
   });
 }
