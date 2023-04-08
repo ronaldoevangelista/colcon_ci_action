@@ -7,7 +7,7 @@
     "doc": "doc"
   },
   "scripts": {
-    "build": "ncc build src/action-colcon-ci.ts -o dist",
+    "build": "ncc build src/action-colcon-ci.ts -o dist --minify",
     "test": "echo \"Error: no test specified\" && exit 1",
     "watch": "ncc build src/action-colcon-ci.ts --watch --minify",
     "format": "prettier --write **/*.{js,ts,json,yml}",

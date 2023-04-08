@@ -20,7 +20,6 @@ const validROS2Distros: string[] = [
 ];
 
 const targetROS2DistroInput: string = "target-ros2-distro";
-const isLinux: boolean = process.platform == "linux";
 
 export function filterNonEmptyJoin(values: string[]): string {
   return values.filter((v) => v.length > 0).join(" ");
@@ -311,12 +310,11 @@ async function run_throw(): Promise<void> {
       COLCON_DEFAULTS_FILE: colconDefaultsFile,
     };
   }
-  if (isLinux) {
-    options.env = {
-      ...options.env,
-      DEBIAN_FRONTEND: "noninteractive",
-    };
-  }
+
+  options.env = {
+    ...options.env,
+    DEBIAN_FRONTEND: "noninteractive",
+  };
 
   if (importToken !== "") {
     await execShellCommand(
