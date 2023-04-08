@@ -1,0 +1,37 @@
+{
+  "name": "action-colcon-ci",
+  "version": "1.0.0",
+  "description": "GitHub Action compiling and testing a ROS 2 package with colcon",
+  "main": "dist/index.js",
+  "directories": {
+    "doc": "doc"
+  },
+  "scripts": {
+    "build": "ncc build src/action-colcon-ci.ts -o dist",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "watch": "ncc build src/action-colcon-ci.ts --watch --minify",
+    "format": "prettier --write **/*.{js,ts,json,yml}",
+    "format-check": "prettier --check **/*.{js,ts,json,yml}",
+    "lint": "eslint \"**/*.{ts,js}\" --fix",
+    "start": "node dist/index.js"
+  },
+  "author": "Ronaldo Evangelista",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@types/node": "^18.15.11",
+    "@typescript-eslint/eslint-plugin": "^5.57.1",
+    "@typescript-eslint/parser": "^5.57.1",
+    "@zeit/ncc": "^0.22.3",
+    "eslint": "^8.38.0",
+    "eslint-config-prettier": "^8.8.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "prettier": "^2.8.7"
+  },
+  "dependencies": {
+    "@actions/core": "^1.10.0",
+    "@actions/exec": "^1.1.1",
+    "@actions/github": "^5.1.1",
+    "@actions/io": "^1.1.3",
+    "async-retry": "^1.3.3"
+  }
+}
