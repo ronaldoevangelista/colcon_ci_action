@@ -1,6 +1,6 @@
 name: "Colcon to ROS 2 CI Action"
-description: "GitHub Action compiling and testing a ROS 2 package with colcon",
-author: "Ronaldo Evangelista",
+description: "GitHub Action compiling and testing a ROS 2 package with colcon"
+author: "Ronaldo Evangelista"
 inputs:
   colcon-defaults:
     default: ""
