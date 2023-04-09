@@ -7,7 +7,6 @@ import * as utils from "./commons.utils";
 export async function execShellCommand(
   command: string[],
   options?: im.ExecOptions,
-  force_bash: boolean = true,
   log_message?: string
 ): Promise<number> {
   command = [utils.filterNonEmptyJoin(command)];

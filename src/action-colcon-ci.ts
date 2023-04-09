@@ -8,9 +8,11 @@ import * as path from "path";
 import * as url from "url";
 import fs from "fs";
 import retry from "async-retry";
+
 import * as dep from "./dependencies";
 import * as utils from "./commons.utils";
-
+import * as runtest from "./colcon.runtest";
+import * as runcoverage from "./colcon.runcoverage";
 
 const validROS2Distros: string[] = [
   "dashing",
@@ -98,120 +100,6 @@ async function installRosdeps(
   return exitCode;
 }
 
-async function runTests(
-  colconCommandPrefix: string[],
-  options: im.ExecOptions,
-  testPackageSelection: string[],
-  colconExtraArgs: string[],
-  coverageIgnorePattern: string[]
-): Promise<void> {
-
-  const colconLcovInitialCmd = [`colcon`, `lcov-result`, `--initial`];
-  await execShellCommand(
-    [...colconCommandPrefix, ...colconLcovInitialCmd],
-    {
-      ...options,
-      ignoreReturnCode: true,
-    },
-    false
-  );
-
-  let colconTestCmd = [
-    `colcon`,
-    `test`,
-    `--event-handlers=console_cohesion+`,
-    ...testPackageSelection,
-    ...colconExtraArgs,
-  ];
-
-  await execShellCommand(
-    [...colconCommandPrefix, ...colconTestCmd],
-    options,
-    false
-  );
-
-  const colconTestResultCmd = ["colcon", "test-result"];
-  const colconTestResultAllCmd = [...colconTestResultCmd, "--all"];
-  const colconTestResultVerboseCmd = [...colconTestResultCmd, "--verbose"];
-
-  await execShellCommand(
-    [...colconCommandPrefix, ...colconTestResultAllCmd],
-    {
-      ...options,
-      ignoreReturnCode: true,
-    },
-    false
-  );
-  await execShellCommand(
-    [...colconCommandPrefix, ...colconTestResultVerboseCmd],
-    options,
-    false
-  );
-
-  const colconLcovResultCmd = [
-    `colcon`,
-    `lcov-result`,
-    ...testPackageSelection,
-    ...coverageIgnorePattern,
-    `--verbose`,
-  ];
-  await execShellCommand(
-    [...colconCommandPrefix, ...colconLcovResultCmd],
-    {
-      ...options,
-      ignoreReturnCode: true,
-    },
-    false
-  );
-
-  const colconCoveragepyResultCmd = [
-    `colcon`,
-    `coveragepy-result`,
-    ...testPackageSelection,
-    `--verbose`,
-    `--coverage-report-args`,
-    `-m`,
-  ];
-  await execShellCommand(
-    [...colconCommandPrefix, ...colconCoveragepyResultCmd],
-    options,
-    false
-  );
-}
-
-async function runCoverage(
-  colconCommandPrefix: string[],
-  options: im.ExecOptions,
-  testPackageSelection: string[],
-  colconExtraArgs: string[],
-  coverageIgnorePattern: string[],
-  workspaceDir: string,
-): Promise<void> {
-
-  const colconLcovInitialCmd = [`lcov`, `--directory`, `.`, `--zerocounters`];
-  await execShellCommand(
-    [...colconCommandPrefix, ...colconLcovInitialCmd],
-    {
-      ...options,
-      ignoreReturnCode: true,
-    },
-    false
-  );
-
- const colconLcovCaptureInitialCmd = [`lcov`, `--no-external`, `--initial`, `--directory`,`.`];
-  await execShellCommand(
-    [...colconCommandPrefix, ...colconLcovCaptureInitialCmd],
-    {
-      ...options,
-      ignoreReturnCode: true,
-    },
-    false
-  );
-  core.info("\t" + workspaceDir);
-  core.info("\t" + testPackageSelection);
-
-}
-
 async function run_throw(): Promise<void> {
   const repo = github.context.repo;
   const workspace = process.env.GITHUB_WORKSPACE as string;
@@ -260,6 +148,7 @@ async function run_throw(): Promise<void> {
   let vcsRepoFileUrlList = vcsRepoFileUrlListAsString.split(RegExp("\\s"));
 
   const skipTests = core.getInput("skip-tests") === "true";
+  const skipCoverage = core.getInput("skip-coverage") === "true";
   const vcsReposOverride = dep.getReposFilesOverride(github.context.payload);
   const vcsReposSupplemental = dep.getReposFilesSupplemental(
     github.context.payload
@@ -485,25 +374,28 @@ async function run_throw(): Promise<void> {
   );
 
   if (!skipTests) {
-    await runTests(
+    await runtest.runTests(
       colconCommandPrefix,
       options,
       testPackageSelection,
-      colconExtraArgs,
-      coverageIgnorePattern
+      colconExtraArgs
     );
   } else {
     core.info("Skipping tests");
   }
 
-  await runCoverage(
-    colconCommandPrefix,
-    options,
-    testPackageSelection,
-    colconExtraArgs,
-    coverageIgnorePattern,
-    rosWorkspaceDir
-  );
+  if (!skipCoverage) {
+    await runcoverage.runCoverage(
+      colconCommandPrefix,
+      options,
+      testPackageSelection,
+      colconExtraArgs,
+      coverageIgnorePattern,
+      rosWorkspaceDir
+    );
+  } else {
+    core.info("Skipping coverage");
+  }
 
   if (importToken !== "") {
     await execShellCommand(
