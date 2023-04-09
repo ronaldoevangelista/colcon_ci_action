@@ -1,11 +1,9 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import * as im from "@actions/exec/lib/interfaces";
-import * as tr from "@actions/exec/lib/toolrunner";
 import * as io from "@actions/io";
 import * as os from "os";
 import * as path from "path";
-import * as url from "url";
 import fs from "fs";
 import retry from "async-retry";
 
@@ -13,6 +11,7 @@ import * as dep from "./dependencies";
 import * as utils from "./commons.utils";
 import * as runtest from "./colcon.runtest";
 import * as runcoverage from "./colcon.runcoverage";
+import * as cmd from "./exec.shell.command";
 
 const validROS2Distros: string[] = [
   "dashing",
@@ -24,47 +23,6 @@ const validROS2Distros: string[] = [
 ];
 
 const targetROS2DistroInput: string = "target-ros2-distro";
-
-function resolveVcsRepoFileUrl(vcsRepoFileUrl: string): string {
-  if (fs.existsSync(vcsRepoFileUrl)) {
-    return url.pathToFileURL(path.resolve(vcsRepoFileUrl)).href;
-  } else {
-    return vcsRepoFileUrl;
-  }
-}
-
-export async function execShellCommand(
-  command: string[],
-  options?: im.ExecOptions,
-  force_bash: boolean = true,
-  log_message?: string
-): Promise<number> {
-  command = [utils.filterNonEmptyJoin(command)];
-
-  let toolRunnerCommandLine = "";
-  let toolRunnerCommandLineArgs: string[] = [];
-
-  toolRunnerCommandLine = "bash";
-  toolRunnerCommandLineArgs = ["-c", ...command];
-
-  const message =
-    log_message ||
-    `Invoking: ${toolRunnerCommandLine} ${toolRunnerCommandLineArgs}`;
-
-  const runner: tr.ToolRunner = new tr.ToolRunner(
-    toolRunnerCommandLine,
-    toolRunnerCommandLineArgs,
-    options
-  );
-
-  if (options && options.silent) {
-    return runner.exec();
-  }
-
-  return core.group(message, () => {
-    return runner.exec();
-  });
-}
 
 async function installRosdeps(
   packageSelection: string[],
@@ -92,7 +50,7 @@ async function installRosdeps(
 
   let exitCode = 0;
 
-  exitCode += await execShellCommand(
+  exitCode += await cmd.execShellCommand(
     [`./${scriptName} ${ros2Distro}`],
     options
   );
@@ -181,7 +139,7 @@ async function run_throw(): Promise<void> {
   const vcsRepoFileUrlListNonEmpty = vcsRepoFileUrlList.filter((x) => x != "");
   await retry(
     async () => {
-      await execShellCommand(["rosdep update --include-eol-distros"]);
+      await cmd.execShellCommand(["rosdep update --include-eol-distros"]);
     },
     {
       retries: 3,
@@ -228,13 +186,13 @@ async function run_throw(): Promise<void> {
   };
 
   if (importToken !== "") {
-    await execShellCommand(
+    await cmd.execShellCommand(
       [
         `/usr/bin/git config --local --unset-all http.https://github.com/.extraheader || true`,
       ],
       options
     );
-    await execShellCommand(
+    await cmd.execShellCommand(
       [
         String.raw`/usr/bin/git submodule foreach --recursive git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader'` +
           ` && git config --local --unset-all 'http.https://github.com/.extraheader' || true`,
@@ -242,20 +200,20 @@ async function run_throw(): Promise<void> {
       options
     );
     // Use a global insteadof entry because local configs aren't observed by git clone
-    await execShellCommand(
+    await cmd.execShellCommand(
       [
         `/usr/bin/git config --global url.https://x-access-token:${importToken}@github.com.insteadof 'https://github.com'`,
       ],
       options
     );
     // same as last three comands but for ssh urls
-    await execShellCommand(
+    await cmd.execShellCommand(
       [
         `/usr/bin/git config --local --unset-all git@github.com:.extraheader || true`,
       ],
       options
     );
-    await execShellCommand(
+    await cmd.execShellCommand(
       [
         String.raw`/usr/bin/git submodule foreach --recursive git config --local --name-only --get-regexp 'git@github\.com:.extraheader'` +
           ` && git config --local --unset-all 'git@github.com:.extraheader' || true`,
@@ -263,36 +221,34 @@ async function run_throw(): Promise<void> {
       options
     );
     // Use a global insteadof entry because local configs aren't observed by git clone (ssh)
-    await execShellCommand(
+    await cmd.execShellCommand(
       [
         `/usr/bin/git config --global url.https://x-access-token:${importToken}@github.com/.insteadof 'git@github.com:'`,
       ],
       options
     );
     if (core.isDebug()) {
-      await execShellCommand(
+      await cmd.execShellCommand(
         [`/usr/bin/git config --list --show-origin || true`],
         options
       );
     }
   }
 
-  // Make sure to delete root .colcon directory if it exists
-  // This is because, for some reason, using Docker, commands might get run as root
-  await execShellCommand(
+  await cmd.execShellCommand(
     [`rm -rf ${path.join(path.sep, "root", ".colcon")} || true`],
     { ...options, silent: true }
   );
 
   for (const vcsRepoFileUrl of vcsRepoFileUrlListNonEmpty) {
-    const resolvedUrl = resolveVcsRepoFileUrl(vcsRepoFileUrl);
-    await execShellCommand(
+    const resolvedUrl = utils.resolveVcsRepoFileUrl(vcsRepoFileUrl);
+    await cmd.execShellCommand(
       [`vcs import --force --recursive src/ --input ${resolvedUrl}`],
       options
     );
   }
 
-  await execShellCommand(
+  await cmd.execShellCommand(
     [
       `vcs diff -s --repos ${rosWorkspaceDir} | cut -d ' ' -f 1 | grep "${repo["repo"]}$"` +
         ` | xargs rm -rf`,
@@ -316,13 +272,13 @@ async function run_throw(): Promise<void> {
     version: '${commitRef}'`;
   fs.writeFileSync(repoFilePath, repoFileContent);
 
-  await execShellCommand(
+  await cmd.execShellCommand(
     ["vcs import --force --recursive src/ < package.repo"],
     options
   );
 
-  await execShellCommand(["vcs log -l1 src/"], options);
-  await execShellCommand(["sudo apt-get update"]);
+  await cmd.execShellCommand(["vcs log -l1 src/"], options);
+  await cmd.execShellCommand(["sudo apt-get update"]);
   await installRosdeps(
     buildPackageSelection,
     rosdepSkipKeysSelection,
@@ -332,15 +288,13 @@ async function run_throw(): Promise<void> {
   );
 
   if (colconDefaults.includes(`"mixin"`) && colconMixinRepo !== "") {
-    await execShellCommand(
+    await cmd.execShellCommand(
       [`colcon`, `mixin`, `add`, `default`, `${colconMixinRepo}`],
-      options,
-      false
+      options
     );
-    await execShellCommand(
+    await cmd.execShellCommand(
       [`colcon`, `mixin`, `update`, `default`],
-      options,
-      false
+      options
     );
   }
 
@@ -367,10 +321,9 @@ async function run_throw(): Promise<void> {
     `--event-handlers=console_cohesion+`,
   ];
 
-  await execShellCommand(
+  await cmd.execShellCommand(
     [...colconCommandPrefix, ...colconBuildCmd],
-    options,
-    false
+    options
   );
 
   if (!skipTests) {
@@ -398,7 +351,7 @@ async function run_throw(): Promise<void> {
   }
 
   if (importToken !== "") {
-    await execShellCommand(
+    await cmd.execShellCommand(
       [
         `/usr/bin/git config --global --unset-all url.https://x-access-token:${importToken}@github.com.insteadof`,
       ],
