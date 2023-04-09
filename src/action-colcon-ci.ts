@@ -9,6 +9,8 @@ import * as url from "url";
 import fs from "fs";
 import retry from "async-retry";
 import * as dep from "./dependencies";
+import * as utils from "./commons.utils";
+
 
 const validROS2Distros: string[] = [
   "dashing",
@@ -21,18 +23,6 @@ const validROS2Distros: string[] = [
 
 const targetROS2DistroInput: string = "target-ros2-distro";
 
-export function filterNonEmptyJoin(values: string[]): string {
-  return values.filter((v) => v.length > 0).join(" ");
-}
-
-function isValidJson(str: string): boolean {
-  try {
-    JSON.parse(str);
-  } catch (e) {
-    return false;
-  }
-  return true;
-}
 function resolveVcsRepoFileUrl(vcsRepoFileUrl: string): string {
   if (fs.existsSync(vcsRepoFileUrl)) {
     return url.pathToFileURL(path.resolve(vcsRepoFileUrl)).href;
@@ -47,7 +37,7 @@ export async function execShellCommand(
   force_bash: boolean = true,
   log_message?: string
 ): Promise<number> {
-  command = [filterNonEmptyJoin(command)];
+  command = [utils.filterNonEmptyJoin(command)];
 
   let toolRunnerCommandLine = "";
   let toolRunnerCommandLineArgs: string[] = [];
@@ -90,10 +80,10 @@ async function installRosdeps(
 		exit 1
 	fi
 	DISTRO=$1
-	package_paths=$(colcon list --paths-only ${filterNonEmptyJoin(
+	package_paths=$(colcon list --paths-only ${utils.filterNonEmptyJoin(
     packageSelection
   )})
-	rosdep install -r --from-paths $package_paths --ignore-src --skip-keys "rti-connext-dds-5.3.1 ${filterNonEmptyJoin(
+	rosdep install -r --from-paths $package_paths --ignore-src --skip-keys "rti-connext-dds-5.3.1 ${utils.filterNonEmptyJoin(
     skipKeys
   )}" --rosdistro $DISTRO -y || true`;
   fs.writeFileSync(scriptPath, scriptContent, { mode: 0o766 });
@@ -208,7 +198,7 @@ async function runCoverage(
     false
   );
 
- const colconLcovCaptureInitialCmd = [`lcov`, `--no-external`, `--initial`, `--directory`,`.`, `--zerocounters`];
+ const colconLcovCaptureInitialCmd = [`lcov`, `--no-external`, `--initial`, `--directory`,`.`];
   await execShellCommand(
     [...colconCommandPrefix, ...colconLcovCaptureInitialCmd],
     {
@@ -218,6 +208,7 @@ async function runCoverage(
     false
   );
   core.info("\t" + workspaceDir);
+  core.info("\t" + testPackageSelection);
 
 }
 
@@ -311,7 +302,7 @@ async function run_throw(): Promise<void> {
   await io.rmRF(path.join(os.homedir(), ".colcon"));
   let colconDefaultsFile = "";
   if (colconDefaults.length > 0) {
-    if (!isValidJson(colconDefaults)) {
+    if (!utils.isValidJson(colconDefaults)) {
       core.setFailed(
         `colcon-defaults value is not a valid JSON string:\n${colconDefaults}`
       );
