@@ -41,14 +41,6 @@ function resolveVcsRepoFileUrl(vcsRepoFileUrl: string): string {
   }
 }
 
-
-// export async function execShellCommand(
-// 	command: string[],
-// 	options?: im.ExecOptions,
-// 	force_bash: boolean = true,
-// 	log_message?: string
-// ):
-
 export async function execShellCommand(
   command: string[],
   options?: im.ExecOptions,
@@ -76,8 +68,6 @@ export async function execShellCommand(
   if (options && options.silent) {
     return runner.exec();
   }
-
-  // const message_string: string = message ? 'true' : 'false';
 
   return core.group(message, () => {
     return runner.exec();
@@ -125,6 +115,7 @@ async function runTests(
   colconExtraArgs: string[],
   coverageIgnorePattern: string[]
 ): Promise<void> {
+
   const colconLcovInitialCmd = [`colcon`, `lcov-result`, `--initial`];
   await execShellCommand(
     [...colconCommandPrefix, ...colconLcovInitialCmd],
@@ -152,6 +143,7 @@ async function runTests(
   const colconTestResultCmd = ["colcon", "test-result"];
   const colconTestResultAllCmd = [...colconTestResultCmd, "--all"];
   const colconTestResultVerboseCmd = [...colconTestResultCmd, "--verbose"];
+
   await execShellCommand(
     [...colconCommandPrefix, ...colconTestResultAllCmd],
     {
@@ -195,6 +187,38 @@ async function runTests(
     options,
     false
   );
+}
+
+async function runCoverage(
+  colconCommandPrefix: string[],
+  options: im.ExecOptions,
+  testPackageSelection: string[],
+  colconExtraArgs: string[],
+  coverageIgnorePattern: string[],
+  workspaceDir: string,
+): Promise<void> {
+
+  const colconLcovInitialCmd = [`lcov`, `--directory`, `.`, `--zerocounters`];
+  await execShellCommand(
+    [...colconCommandPrefix, ...colconLcovInitialCmd],
+    {
+      ...options,
+      ignoreReturnCode: true,
+    },
+    false
+  );
+
+ const colconLcovCaptureInitialCmd = [`lcov`, `--no-external`, `--initial`, `--directory`,`.`, `--zerocounters`];
+  await execShellCommand(
+    [...colconCommandPrefix, ...colconLcovCaptureInitialCmd],
+    {
+      ...options,
+      ignoreReturnCode: true,
+    },
+    false
+  );
+  core.info("\t" + workspaceDir);
+
 }
 
 async function run_throw(): Promise<void> {
@@ -480,6 +504,15 @@ async function run_throw(): Promise<void> {
   } else {
     core.info("Skipping tests");
   }
+
+  await runCoverage(
+    colconCommandPrefix,
+    options,
+    testPackageSelection,
+    colconExtraArgs,
+    coverageIgnorePattern,
+    rosWorkspaceDir
+  );
 
   if (importToken !== "") {
     await execShellCommand(
